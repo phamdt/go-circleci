@@ -46,8 +46,9 @@ type Client struct {
 	Token      string       // CircleCI API token (needed for private repositories and mutative actions)
 	HTTPClient *http.Client // HTTPClient to use for connecting to CircleCI (defaults to http.DefaultClient)
 
-	Debug  bool   // debug logging enabled
-	Logger Logger // logger to send debug messages on (if enabled), defaults to logging to stderr with the standard flags
+	Debug          bool    // debug logging enabled
+	Logger         Logger  // logger to send debug messages on (if enabled), defaults to logging to stderr with the standard flags
+	DefaultVCSType VcsType // unless specified in the individual function argument, default to using this VcsType e.g. always use "github"
 }
 
 func (c *Client) baseURL() *url.URL {
@@ -506,12 +507,16 @@ func (c *Client) ClearCache(account, repo string) (string, error) {
 func (c *Client) AddEnvVar(account, repo, name, value string) (*EnvVar, error) {
 	envVar := &EnvVar{}
 
-	err := c.request("POST", fmt.Sprintf("project/%s/%s/envvar", account, repo), envVar, nil, &EnvVar{Name: name, Value: value})
+	err := c.request("POST", c.createPath(c.DefaultVCSType, account, repo, "envvar"), envVar, nil, &EnvVar{Name: name, Value: value})
 	if err != nil {
 		return nil, err
 	}
 
 	return envVar, nil
+}
+
+func (c *Client) createPath(vcs VcsType, account string, repo string, resource string) string {
+	return fmt.Sprintf("project/%s/%s/%s/%s", vcs, account, repo, resource)
 }
 
 // ListEnvVars list environment variable to the specified project
